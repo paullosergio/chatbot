@@ -1,31 +1,14 @@
-# Dockerfile para o serviço unificado (app)
-FROM python:3.12.4
+# Dockerfile
+FROM python:3.11-slim as base
 
 WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
 
-# Instala o Poetry e dependências
-RUN apt-get update && \
-    apt-get install -y curl && \
-    curl -sSL https://install.python-poetry.org | python3 - && \
-    export PATH="/root/.local/bin:$PATH"
+FROM base as api
+COPY src /app/src
+CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
-# Adiciona Poetry ao PATH e define para não criar ambiente virtual
-ENV PATH="/root/.local/bin:$PATH"
-ENV POETRY_VIRTUALENVS_CREATE=false
-ENV PYTHONPATH="${PYTHONPATH}:/app/backend"
-
-# Copia os arquivos de dependências do Poetry
-COPY ./pyproject.toml ./poetry.lock ./
-
-# Instala as dependências com Poetry
-RUN poetry install --no-root
-
-# Copia o código do aplicativo
-COPY . .
-
-# Copia o script de inicialização
-COPY start_services.sh /app/start_services.sh
-RUN chmod +x /app/start_services.sh
-
-# Define o comando para rodar o frontend e backend
-CMD ["./start_services.sh"]
+FROM base as ui
+COPY src /app/src
+CMD ["streamlit", "run", "src/ui/app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
