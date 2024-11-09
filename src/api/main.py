@@ -1,4 +1,3 @@
-# src/api/main.py
 import os
 from typing import Any, Dict, Optional
 
@@ -6,10 +5,12 @@ import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from src.agents.learning_agent import LearningAgent
-from src.db.vector_store import VectorStore
+
+from .instace_db import vector_store
 
 load_dotenv()
 
@@ -34,43 +35,81 @@ class ChatResponse(BaseModel):
     metadata: Dict[str, Any]
 
 
-# Initialize services
-vector_store = VectorStore(
-    host=os.getenv("CHROMADB_HOST", "localhost"),
-    port=int(os.getenv("CHROMADB_PORT", 8000)),
-)
+# Memory for conversation history
+conversation_history = []
+
 agent = LearningAgent(api_key=os.getenv("GROQ_API_KEY"))
+
 
 @app.get("/")
 async def root():
-    print("oi")
-    return {"message": "Hello World"}
+    return vector_store.interaction_collection.query(query_texts=[""], n_results=100)
+
+
+@app.get("/chat/history")
+async def get_chat_history():
+    try:
+
+        results = vector_store.interaction_collection.query(query_texts=[""], n_results=100)
+
+        history = sorted(
+            [
+                {
+                    "message": item["document"],
+                    "response": item["metadata"]["response"],
+                    "timestamp": item["metadata"].get("timestamp"),
+                }
+                for item in vector_store._format_results(results)
+            ],
+            key=lambda x: x["timestamp"],
+            reverse=True,
+        )
+
+        return JSONResponse(content={"history": history})
+    except Exception as e:
+        print(f"Error retrieving chat history: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     try:
-        # Search for relevant knowledge
-        knowledge = await vector_store.search_knowledge(request.message)
-
-        # Add knowledge to context
-        context = {**request.context, "relevant_knowledge": knowledge}
-
-        # Process message
-        response = await agent.process(request.message, context)
-
-        # Store interaction
-        await vector_store.add_interaction(
-            text=request.message,
-            metadata={
-                "response": response.content,
-                "confidence": response.confidence,
-                "source": response.source,
-            },
+        # Buscar interações anteriores com base na similaridade
+        results = vector_store.interaction_collection.query(
+            query_texts=[request.message], n_results=4
         )
 
-        return ChatResponse(response=response.content, metadata=response.metadata)
+        # Verifica se há resultados e filtra as interações relevantes
+        relevant_interactions = (
+            [res for res in vector_store._format_results(results) if res["distance"] < 0.6]
+            if results["ids"][0]
+            else []
+        )
 
+        # Constrói o contexto a partir de interações relevantes, se houver
+        additional_context = (
+            {"previous_responses": [item["metadata"]["response"] for item in relevant_interactions]}
+            if relevant_interactions
+            else {}
+        )
+
+        # Processa a mensagem usando o agente, passando o contexto adicional, se houver
+        agent_response = await agent.process(
+            request.message, {**request.context, **additional_context}
+        )
+
+        # Usa a resposta do agente como a principal resposta
+        response_content = agent_response.content
+
+        # Armazena a interação para análise futura
+        await vector_store.add_interaction(
+            text=request.message,
+            metadata={"response": response_content, "source": "user_interaction"},
+        )
+
+        return ChatResponse(response=response_content, metadata=agent_response.metadata)
     except Exception as e:
+        print(f"Error processing chat request: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
