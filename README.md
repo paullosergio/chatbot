@@ -49,8 +49,8 @@ project/
 
 1. Clone o repositório:
    ```bash
-   git clone https://github.com/seu-usuario/learning-chatbot-api.git
-   cd learning-chatbot-api
+   git clone https://github.com/paullosergio/chatbot.git
+   cd chatbot
    ```
 
 2. Crie um ambiente virtual e instale as dependências:
