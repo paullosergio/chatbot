@@ -86,25 +86,30 @@ project/
 ## Endpoints da API
 
 ### `POST /chat`
-Endpoint principal para envio de mensagens ao chatbot. O histórico é carregado do `ChromaDB` e incluído na resposta.
+Endpoint principal para envio de mensagens ao chatbot. Este endpoint processa uma mensagem do usuário e adiciona o histórico relevante do ChromaDB para contextualizar a resposta, baseado nas interações anteriores com distância menor que 0.7.
 
 - **Parâmetros**:
   - `message` (str): A mensagem do usuário.
-  - `context` (dict): Contexto adicional, incluindo preferências do usuário.
+  - `context` (dict): Contexto adicional, incluindo preferências do usuário, como `languag`, `formalit`, e `learning_mode`.
 
 - **Exemplo de Resposta**:
   ```json
   {
     "response": "Hello! How can I help you today?",
     "metadata": {
-      "context": {...},
-      "language": "en"
+      "context": {
+        "preferences": {
+          "language": "en",
+          "formality": "neutral",
+          "learning_mode": "active"
+        }
+      }
     }
   }
   ```
 
 ### `GET /chat/history`
-Retorna o histórico das últimas 10 mensagens, com ordenação pelo timestamp.
+Retorna o histórico das últimas interações, com ordenação pelo `timestamp`. O código atual está configurado para retornar até 100 interações. Caso deseje modificar para um limite menor, altere o parâmetro `n_result`.
 
 - **Exemplo de Resposta**:
   ```json
