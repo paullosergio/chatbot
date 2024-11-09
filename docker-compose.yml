@@ -1,29 +1,46 @@
 services:
   chromadb:
-    image: chromadb/chroma
-    container_name: chromadb
+    image: ghcr.io/chroma-core/chroma:latest
     ports:
       - "8000:8000"
     volumes:
-      - chromadb_data:/root/.cache/chroma/db
+      - chroma_data:/chroma/data
+    environment:
+      - ALLOW_RESET=true
+      - ANONYMIZED_TELEMETRY=false
+    restart: always
 
-  app:
+  api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: chatbot_app
+      target: api
     ports:
-      - "5000:5000"
-      - "8501:8501"
+      - "8001:8000"
     environment:
       - CHROMADB_HOST=chromadb
       - CHROMADB_PORT=8000
       - GROQ_API_KEY=${GROQ_API_KEY}
-    depends_on:
-      - chromadb
     volumes:
       - chromadb_cache:/root/.cache/chroma/onnx_models
+      - ./src:/app/src
+    depends_on:
+      - chromadb
+    restart: always
+
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: ui
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./src:/app/src
+    depends_on:
+      - api
+    restart: always
 
 volumes:
-  chromadb_data:
+  chroma_data:
   chromadb_cache:
