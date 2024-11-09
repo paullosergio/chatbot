@@ -8,6 +8,7 @@ services:
     environment:
       - ALLOW_RESET=true
       - ANONYMIZED_TELEMETRY=false
+    restart: always
 
   api:
     build:
@@ -15,7 +16,7 @@ services:
       dockerfile: Dockerfile
       target: api
     ports:
-      - "8001:8000" 
+      - "8001:8000"
     environment:
       - CHROMADB_HOST=chromadb
       - CHROMADB_PORT=8000
@@ -25,6 +26,7 @@ services:
       - ./src:/app/src
     depends_on:
       - chromadb
+    restart: always
 
   ui:
     build:
@@ -37,6 +39,7 @@ services:
       - ./src:/app/src
     depends_on:
       - api
+    restart: always
 
 volumes:
   chroma_data:
