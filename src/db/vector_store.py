@@ -1,38 +1,43 @@
-# src/db/vector_store.py
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 import chromadb
 
 
 class VectorStore:
-    def __init__(self, host: str, port: int):
-        # self.client = chromadb.HttpClient(host=host, port=port)
-        self.client = chromadb.PersistentClient(path='/root/.cache/chroma/db')
-        self.knowledge_collection = self.client.get_or_create_collection(
-            name="knowledge_base", metadata={"hnsw:space": "cosine"}
-        )
-        self.interaction_collection = self.client.get_or_create_collection(
-            name="interactions", metadata={"hnsw:space": "cosine"}
-        )
+    def __init__(self):
+        try:
+            self.client = chromadb.PersistentClient(path="/root/.cache/chroma/db")
+        except Exception as e:
+            print(f"Error initializing chromadb client: {e}")
+            raise
 
-    async def add_knowledge(self, text: str, metadata: Dict[str, Any]) -> None:
-        self.knowledge_collection.add(
-            documents=[text], metadatas=[metadata], ids=[f"k_{hash(text)}"]
-        )
+        # Initialize collections for knowledge base and interactions
+        try:
+            self.interaction_collection = self.client.get_or_create_collection(
+                name="interactions", metadata={"hnsw:space": "cosine"}
+            )
+        except Exception as e:
+            print(f"Error creating collections: {e}")
+            raise
 
+    
     async def add_interaction(self, text: str, metadata: Dict[str, Any]) -> None:
-        self.interaction_collection.add(
-            documents=[text], metadatas=[metadata], ids=[f"i_{hash(text)}"]
-        )
+        """Adds an interaction to the interactions collection."""
+        try:
 
-    async def search_knowledge(self, message: str, n_results: int = 5) -> List[Dict[str, Any]]:
-        results = self.knowledge_collection.query(
-            query_texts=[message],
-            n_results=n_results,
-        )
-        return self._format_results(results)
+            metadata["timestamp"] = datetime.now(timezone.utc).isoformat()
+
+            self.interaction_collection.add(
+                documents=[text], metadatas=[metadata], ids=[f"i_{hash(text)}"]
+            )
+        except Exception as e:
+            print(f"Error adding interaction: {e}")
+            raise
+
 
     def _format_results(self, results: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Formats the search results to a list of dictionaries."""
         return [
             {
                 "id": results["ids"][0][i],
