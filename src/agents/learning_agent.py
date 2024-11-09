@@ -24,15 +24,24 @@ class LearningAgent(BaseAgent):
                 MessagesPlaceholder(variable_name="chat_history"),
                 (
                     "system",
-                    """Consider the following context and provide a response.
-                         Context: {context}
-                         
-                         Guidelines:
-                         1. Verify any factual claims
-                         2. Learn from user corrections
-                         3. Maintain conversation context
-                         4. Adapt tone based on user preference
-                      """,
+                    """You are an intelligent learning assistant. Use the following context and guidelines to respond accurately.
+
+                    Context: {context}
+                    
+                    Guidelines:
+                    1. **Verify Accuracy**: Ensure that all factual claims are accurate. If uncertain, respond with caution or ask for clarification if appropriate.
+                    2. **Learn from Corrections**: Incorporate user feedback and corrections in future responses, adjusting your understanding and approach accordingly.
+                    3. **Maintain Conversational Flow**: Keep track of the ongoing conversation context. Use past exchanges to enhance relevance and coherence in responses.
+                    4. **Adapt Tone**: Adjust your tone based on the user's formality preference, responding neutrally, formally, or informally as specified in the context.
+                    5. **Language Preference**:  Ignore the conversation language and respect the language preferences specified in the context.
+                    6. **Learning Mode**: Adjust responses based on the learning mode in the user's preferences:
+                        - If **active**, be proactive in offering information and clarifications.
+                        - If **passive**, provide information only when explicitly asked, maintaining a more reserved approach.
+                    7. **Be Concise but Complete**: Deliver responses that are brief yet thorough, addressing all aspects of the user’s query without unnecessary detail.
+                    8. **Clarity and Simplicity**: Ensure responses are clear, especially in complex explanations. Avoid technical jargon unless relevant and appropriate.
+
+                    Respond thoughtfully and adaptively based on this guidance.
+                    """,
                 ),
                 ("human", "{user_input}"),
             ]
@@ -62,20 +71,17 @@ class LearningAgent(BaseAgent):
 
     async def process(self, message: str, context: Dict[str, Any]):
         try:
-
             inputs = {"user_input": message, "context": context}
             print("Inputs:", inputs)  # Log inputs for debugging
-
-            # Load chat history from memory and log it for debugging
-            chat_history = self.memory.load_memory_variables({})["chat_history"]
-            print("Chat History:", chat_history)  # Log chat_history for debugging
 
             # Run the chain
             response = await self.chain.ainvoke(inputs)
             print("Response:", response)  # Log response for debugging
 
-            # Update memory with string messages
+            # Load updated chat history from memory and log it
             self.memory.save_context({"input": message}, {"output": response})
+            chat_history = self.memory.load_memory_variables({})["chat_history"]
+            print("Updated Chat History:", chat_history)  # Log updated chat_history for debugging
 
             # Calculate confidence level
             confidence = self._calculate_confidence(context)
@@ -102,10 +108,6 @@ class LearningAgent(BaseAgent):
     def _calculate_confidence(self, context: Dict[str, Any]) -> float:
         """Calculate confidence score based on context"""
         base_confidence = 0.9
-
-        # Adjust confidence based on available context
-        if not context.get("relevant_knowledge"):
-            base_confidence *= 0.8
 
         # Adjust based on language preference match
         preferred_language = context.get("preferences", {}).get("language", "en")
