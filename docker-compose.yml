@@ -40,6 +40,8 @@ services:
     depends_on:
       - api
     restart: always
+    environment:
+      - PYTHONPATH=/app
 
 volumes:
   chroma_data:
