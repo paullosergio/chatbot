@@ -24,12 +24,16 @@ project/
 │
 ├── src/
 │   ├── api/
-│   │   └── app.py                # Definição da API com FastAPI e endpoints
-│   │   └── instace_db.py         # Configuração do banco de dados ChromaDB
+│   │   └── main.py               # Definição da API com FastAPI e endpoints
 │   ├── agents/
 │   │   └── learning_agent.py     # Implementação do agente de aprendizado (LearningAgent)
-│   └── db/
-│       └── vector_store.py       # Configuração e métodos para interação com o ChromaDB
+│   │   └── base_agent.py         # Implementação de Schemas
+│   ├── db/
+│   |   └── vector_store.py       # Configuração e métodos para interação com o ChromaDB
+│   │   └── instance_db.py        # Configuração do banco de dados ChromaDB
+│   ├── ui/
+│   |   └── app.py                # Arquivo do frontend
+│   |   └── api_client.py         # Cliente da API para o frontend
 │
 ├── .env                          # Arquivo para variáveis de ambiente (chave da API, etc.)
 ├── Dockerfile                    # Configuração do Docker para o projeto
