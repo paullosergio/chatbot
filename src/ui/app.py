@@ -1,8 +1,11 @@
 import asyncio
 from datetime import datetime
 
-import httpx
 import streamlit as st
+
+from src.ui.api_client import ChatAPIClient
+
+api_client = ChatAPIClient()
 
 # Configuração da página
 st.set_page_config(page_title="Learning Chatbot", layout="wide", initial_sidebar_state="expanded")
@@ -18,31 +21,15 @@ if "preferences" not in st.session_state:
         "learning_mode": "active",
     }
 
-
-# Função assíncrona para carregar o histórico de mensagens
-async def load_chat_history() -> list:
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.get("http://api:8000/chat/history", timeout=30.0)
-            if response.status_code == 200:
-                return response.json().get("history", [])
-            else:
-                st.error("Erro ao carregar histórico do chat.")
-                return []
-        except Exception as e:
-            st.error(f"Erro ao conectar ao servidor: {e}")
-            return []
-
-
 # Verifica se o histórico de mensagens já foi carregado
 if "history_loaded" not in st.session_state:
     st.session_state.history_loaded = False
 
 # Carrega o histórico de mensagens uma única vez
 if not st.session_state.history_loaded:
-    chat_history = asyncio.run(load_chat_history())
+    chat_history = asyncio.run(api_client.get_chat_history())
 
-    recent_history = chat_history if len(chat_history) > 10 else chat_history
+    recent_history = chat_history
 
     for message in reversed(recent_history):
         st.session_state.messages.append({"role": "user", "content": message["message"]})
@@ -50,29 +37,10 @@ if not st.session_state.history_loaded:
     st.session_state.history_loaded = True
 
 
-# Função assíncrona para fazer a chamada à API
-async def call_chat_api(prompt: str, context: dict) -> dict:
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(
-                "http://api:8000/chat",
-                json={"message": prompt, "context": context},
-                timeout=30.0,
-                headers={"Content-Type": "application/json"},
-            )
-            response.raise_for_status()
-            return response.json()
-        except httpx.HTTPError as e:
-            print(e)
-            return {"response": f"Erro na API: {str(e)}", "metadata": {"error": str(e)}}
-        except Exception as e:
-            return {"response": f"Erro na comunicação: {str(e)}", "metadata": {"error": str(e)}}
-
-
 # Função para executar a chamada assíncrona
 def get_chat_response(prompt: str, context: dict) -> dict:
     try:
-        return asyncio.run(call_chat_api(prompt, context))  # Optimized event loop management
+        return asyncio.run(api_client.send_message(prompt, context))
     except Exception as e:
         return {"response": "Erro ao processar a resposta", "metadata": {"error": str(e)}}
 
