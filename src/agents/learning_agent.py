@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Dict
 
 from langchain.memory import ConversationBufferMemory
@@ -9,6 +10,9 @@ from langchain_groq import ChatGroq
 
 from .base_agent import AgentResponse, BaseAgent
 
+# Configuração do logger
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 class LearningAgent(BaseAgent):
     def __init__(self, api_key: str):
@@ -55,12 +59,12 @@ class LearningAgent(BaseAgent):
 
             # Run the chain
             response = await self.chain.ainvoke(inputs)
-            print("Response:", response)  # Log response for debugging
+            logger.info("Response: %s", response)  # Log response for debugging
 
             # Load updated chat history from memory and log it
             self.memory.save_context({"input": message}, {"output": response})
             chat_history = self.memory.load_memory_variables({})["chat_history"]
-            print("Updated Chat History:", chat_history)  # Log updated chat_history for debugging
+            logger.info("Updated Chat History: %s", chat_history)  # Log updated chat_history for debugging
 
             # Calculate confidence level
             confidence = self._calculate_confidence(context)
@@ -76,7 +80,7 @@ class LearningAgent(BaseAgent):
             )
 
         except Exception as e:
-            print(f"Error in processing: {str(e)}")
+            logger.error("Error in processing: %s", str(e))
             return AgentResponse(
                 content="Sorry, I encountered an error processing your request.",
                 confidence=0,
