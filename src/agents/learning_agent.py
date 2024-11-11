@@ -46,33 +46,12 @@ class LearningAgent(BaseAgent):
                 ("human", "{user_input}"),
             ]
         )
-
-        # Create the chain with string output parser
-        self.chain = (
-            RunnablePassthrough.assign(
-                chat_history=lambda x: self._prepare_chat_history(
-                    self.memory.load_memory_variables({})["chat_history"]
-                )
-            )
-            | self.prompt
-            | self.llm
-            | StrOutputParser()
-        )
-
-    def _prepare_chat_history(self, chat_history):
-        """Convert chat history messages to strings to avoid unsupported types."""
-        processed_history = []
-        for message in chat_history:
-            if isinstance(message, (HumanMessage, AIMessage)):
-                processed_history.append(message.content)  # Extract content as string
-            else:
-                processed_history.append(str(message))  # Convert any other types to string
-        return processed_history
+        self.chain = self.prompt | self.llm | StrOutputParser()
 
     async def process(self, message: str, context: Dict[str, Any]):
         try:
-            inputs = {"user_input": message, "context": context}
-            print("Inputs:", inputs)  # Log inputs for debugging
+            chat_history = self.memory.load_memory_variables({})["chat_history"]
+            inputs = {"user_input": message, "context": context, "chat_history": chat_history}
 
             # Run the chain
             response = await self.chain.ainvoke(inputs)
@@ -98,12 +77,12 @@ class LearningAgent(BaseAgent):
 
         except Exception as e:
             print(f"Error in processing: {str(e)}")
-            return {
-                "content": "Sorry, I encountered an error processing your request.",
-                "confidence": 0,
-                "source": "learning_agent",
-                "metadata": {"error": str(e)},
-            }
+            return AgentResponse(
+                content="Sorry, I encountered an error processing your request.",
+                confidence=0,
+                source="learning_agent",
+                metadata={"error": str(e)},
+            )
 
     def _calculate_confidence(self, context: Dict[str, Any]) -> float:
         """Calculate confidence score based on context"""
