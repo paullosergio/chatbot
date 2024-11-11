@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from src.agents.learning_agent import LearningAgent
 
-from .instace_db import vector_store
+from ..db.instance_db import vector_store
 
 load_dotenv()
 
